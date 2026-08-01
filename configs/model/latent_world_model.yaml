@@ -1,0 +1,56 @@
+# Latent world model: a frozen RAEv2 codec plus an action-conditioned flow-matching diffusion
+# transformer over the codec's latent grid. The codec is loaded frozen from `codec_checkpoint`; its
+# latent dimension and temporal/spatial downsampling factors are read from it, not configured here.
+# The architecture size is selected via package-override (`latent_world_model@architecture.config`).
+defaults:
+  - latent_world_model@architecture.config: 1b
+
+architecture:
+  _target_: mira.world_model.latent_world_model.LatentWorldModel
+  _convert_: all  # pass plain dicts to the Pydantic config, not OmegaConf nodes
+
+  config:
+    _target_: mira.world_model.config.LatentWorldModelConfig
+
+    # The action vocabulary travels with the dataset.
+    actions: ${dataset.actions}
+
+    video:
+      _target_: mira.ml.image_config.ImageConfig
+      height: 384
+      width: 512
+      channels: 3
+      timesteps: 40
+      # Frame rate the world model sees. With actions at 20fps and codec temporal_downsampling=2,
+      # this yields action_temporal_downsampling = 20*2//20 = 2 and actions_per_video_frame =
+      # 20//20 = 1 (one action per video frame, matching every trained checkpoint). The additive
+      # actions.target_fps knob can decouple the two rates, but the released default is 1:1.
+      fps: 35
+
+    # Path or W&B URL to the frozen codec checkpoint; required at train/eval time (override on the
+    # command line). null is a placeholder so the config composes without a checkpoint.
+    codec_checkpoint: null
+    # Estimated during codec training and saved in the codec checkpoint, so null here for new codecs.
+    latent_mean_std: null
+
+    patch_size: 1
+    n_register_tokens: 0
+    attention_gating: true
+
+    n_context_frames: 39  # only used during inference
+    dropout_action_prob: 0.1
+    learned_temporal_pool: true
+    causal: true
+    use_codec_posterior_mean: true
+    activation_checkpointing: false
+    # AdaLN conditioning on the attention sublayers as well as the MLP.
+    ada_attn_ln: true
+    # PSD-M self-distillation. Two mutually-exclusive ways to mix it in (both 0 = disabled):
+    #   psd_loss_prob: STOCHASTIC, add the (unweighted) PSD loss on a fraction of steps.
+    #   psd_weight:    DETERMINISTIC, add psd_weight * loss_psd every step.
+    # See https://arxiv.org/abs/2505.18825 and https://arxiv.org/abs/2410.12557
+    psd_loss_prob: 0.0
+    psd_weight: 0.0
+    # Condition each denoising step on the clean latents of the previous frames (avoids the
+    # train/inference mismatch in diffusion forcing).
+    use_clean_past: true

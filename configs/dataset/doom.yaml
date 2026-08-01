@@ -1,0 +1,25 @@
+# Doom 2-player dataset (chrisxx/doom-2players-mp4), converted into MIRA's WebDataset layout by
+# scripts/preprocess_doom.py. Point train_index/test_index at the converted split directories
+# (each holding index.json plus its shards). Single-player by default (n_players=1) for the codec
+# and the single-player world model; the multiplayer world model overrides n_players=2.
+defaults:
+  - /actions@actions: doom
+  - _self_
+
+train_index: null      # e.g. /data/doom_mira/train  (dir with index.json + shards)
+test_index: null       # e.g. /data/doom_mira/test
+
+n_players: 1           # 1 for the codec + single-player WM; 2 for the multiplayer WM.
+
+# Keep the native 35 fps (see configs/actions/doom.yaml for why 20 is not reachable by integer
+# downsampling from 35). The training entrypoints override this from the model's video.fps, so also
+# set video.fps=35 on the codec / world-model configs (or via the CLI overrides in the run guide).
+target_fps: 35
+
+# Source frames are 480x640 (4:3). The released codec/world-model configs are built for 288x512.
+# Resizing 4:3 -> 16:9 squashes the image; [384, 512] keeps 4:3 and is divisible by 16 (DINOv3 patch)
+# and by the decoder patch (16) and temporal stride. Set the codec/world-model video height/width to
+# match whatever you choose here. null = native 480x640 (heavier: ~2.7x the tokens of 288x512).
+frame_size: [384, 512]
+
+exclude_replays: false  # Doom has no replay spans; leave false.

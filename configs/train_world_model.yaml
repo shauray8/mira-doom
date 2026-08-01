@@ -1,0 +1,69 @@
+defaults:
+  - _self_
+  - model: latent_world_model
+  - dataset: doom
+
+# The action vocabulary travels with the dataset; expose it at the top level for the loader.
+actions: ${dataset.actions}
+
+wandb:
+  entity: null
+  project: mira-world-model
+  name: world_model
+  group: null
+  mode: online  # "disabled" to turn off, "offline" to log locally only
+
+run:
+  seed: 28
+  steps: 250_001
+  batch_size: 1
+  checkpoint_every: "10%"
+  checkpoint_keep_recent: 1
+  checkpoint_keep_permanent_every: -1
+  log_every: "1%"
+  output_dir: "train_world_model_logs"
+  viz_every: 1000
+  parallelism: ddp
+  compile: false
+  continue_from: null
+  finetune_from: null
+
+dataloader:
+  num_workers: 6
+  shuffle_buffer_size: 100
+
+validation:
+  batch_size: null  # null to use the same batch size as training
+  val_first: true
+  val_n_samples: 1024
+  val_every: "2%"
+  downstream_val_every: "10%"  # how often to run the world-model metrics eval
+
+optim:
+  optimizer:
+    lr: 1e-4
+    betas: [0.9, 0.99]
+    weight_decay: 0.1
+  scheduler:
+    warmup_steps: 1000
+    constant_steps: 0
+    decay_steps: 0  # 0 to disable cosine decay
+    min_lr: 1e-6
+  model_ema_decay: 0.9999  # 0.0 to disable
+
+world_model_metrics:
+  _target_: mira.training.metrics.world_model_metrics.WorldModelMetricsConfig
+  _convert_: all  # pass plain dicts to the Pydantic config, not OmegaConf nodes
+  inference:
+    schedule_type: linear
+    noise_level: 0.0
+  num_samples: 2048
+  per_device_batch_size: ${run.batch_size}
+  n_context_frames: 38
+  num_unrolled_frames: 20
+  drift_metric_frames: 20
+  fdd_slice_frames: 10  # per-slice Frechet width -> 20/10 = 2 slices (at 10, 20 latent frames)
+  eval_temporal_downsampling: null
+  compile: ${run.compile}
+  dino_max_chunk_size: 128  # max frames per DINO forward pass, reduces peak memory
+  num_viz_samples: 8  # how many eval samples to visualize (logged to W&B)

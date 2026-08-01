@@ -1,0 +1,56 @@
+# RAEv2 codec with 2x temporal downsampling (40 frames @ 20 fps -> 20 latents @ 10 fps ->
+# 40 frames @ 20 fps): a frozen DINOv3-L/16 backbone with layer aggregation and a strided-conv
+# bottleneck, feeding a ViT video decoder. Loss = L1 + LPIPS + DINO latent consistency, with
+# auto-weight balancing of the perceptual terms against the L1 anchor.
+
+loss:
+  _target_: mira.codec.CodecLoss
+  _convert_: all  # pass plain dicts to the Pydantic config, not OmegaConf nodes
+
+  weights:
+    _target_: mira.codec.CodecLossWeights
+    loss_mae: 1.0
+    loss_lpips_perceptual: 1.0
+    lpips_perceptual_frame_frac: 0.25
+    loss_dino_latent_consistency: 1.0
+    dino_latent_consistency_frame_frac: 0.25
+    compile_dino: ${run.compile}
+    auto_weight: true
+
+#############################################################################
+architecture:
+  _target_: mira.codec.VideoCodec
+  _convert_: all  # pass plain dicts to the Pydantic config, not OmegaConf nodes
+
+  config:
+    _target_: mira.codec.VideoCodecConfig
+    encoder:
+      latent_dim: 32
+      rae_model: dinov3_vitl16
+      aggregation_layers: [11, 13, 15, 17, 19, 21, 23]
+      bottleneck:
+        stride: 2
+        temporal_stride: 2
+        noise_tau: 0.0
+      compile_dino: ${run.compile}
+      is_audio_model: false
+      video:
+        height: 288
+        width: 512
+        channels: 3
+        timesteps: 40
+        fps: 20
+
+    decoder:
+      latent_dim: ${..encoder.latent_dim}
+      activation_checkpointing: true
+      bottleneck:
+        stride: ${...encoder.bottleneck.stride}
+      vit_width: 1152
+      vit_depth: 28
+      vit_num_heads: 16
+      mlp_dim_multiplier: 4
+      qk_norm: layernorm
+      patch_size: 16
+      patch_size_t: 2
+      video: ${..encoder.video}

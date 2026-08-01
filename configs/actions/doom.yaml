@@ -1,0 +1,32 @@
+# Doom (chrisxx/doom-2players-mp4) action vocabulary.
+#
+# The source per-frame action is a 14-dim float32 vector:
+#   idx 0-3   movement   (binary: forward, backward, strafe_right, strafe_left)
+#   idx 4-10  weapon 1-7 (binary select)
+#   idx 11    attack     (binary)
+#   idx 12    speed      (binary)
+#   idx 13    turn delta (CONTINUOUS)  -> fed through the mouse channel, NOT here.
+#
+# So `valid_keys` covers the 13 BINARY dims only; the continuous turn delta is written into
+# `mouse_movements[..., 0]` by the preprocessor (see scripts/preprocess_doom.py) and consumed by the
+# action encoder's mouse pathway (symlog-normalized), which is exactly what that pathway is for.
+#
+# Native recording rate is 35 fps. MIRA downsamples actions with an INTEGER stride
+# (source_fps % target_fps == 0), and 35 has no clean integer path to 20, so we keep the native
+# 35 fps end-to-end (target_fps == source_fps == 35 => stride 1, one action per frame). The video
+# fps in the codec / world-model configs is set to 35 to match.
+target_fps: 35
+valid_keys:
+  - forward        # idx 0
+  - backward       # idx 1
+  - strafe_right   # idx 2
+  - strafe_left    # idx 3
+  - weapon1        # idx 4
+  - weapon2        # idx 5
+  - weapon3        # idx 6
+  - weapon4        # idx 7
+  - weapon5        # idx 8
+  - weapon6        # idx 9
+  - weapon7        # idx 10
+  - attack         # idx 11
+  - speed          # idx 12

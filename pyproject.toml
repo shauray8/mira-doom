@@ -1,0 +1,77 @@
+[project]
+name = "mira"
+version = "0.0.1"
+description = "A real-time, browser-playable latent diffusion world model of Doom, built on MIRA (Multiplayer Interactive World Models with Representation Autoencoders)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = [
+    "pydantic>=2.11",
+    "numpy>=1.24",
+    "einops>=0.8",  # the codec/world-model layers use it; needed by every install that loads a model
+]
+
+[project.optional-dependencies]
+# Everything the inference server needs on top of the base install (see setup_inference.sh).
+serve = ["mira[hydra]", "mira[decode]", "fastapi", "uvicorn[standard]", "torchmetrics", "termcolor"]
+# Video decoding. torchcodec needs a runtime FFmpeg whose libs match its build; a known-good
+# torch/torchcodec/FFmpeg combination is torchcodec 0.7.0 + torch 2.8.0 + FFmpeg 7. torch is not
+# pinned here — consumers provide their own torch.
+decode = ["torchcodec"]
+hf = ["datasets>=3", "huggingface_hub"]
+viz = ["matplotlib", "pillow", "plotly"]
+notebook = ["marimo", "matplotlib", "pillow"]
+# Hydra config loading for the training/inference scripts.
+hydra = ["hydra-core>=1.3", "omegaconf>=2.3"]
+# Training: Hydra plus logging/metrics tooling (einops is a base dep). torch is unpinned (consumers
+# BYO; the train/inference code targets torch>=2.8). DINOv3 weights load via torch.hub (no pip dep);
+# torchmetrics + termcolor are transitive runtime deps of that hub repo.
+train = [
+    "mira[hydra]",
+    "mira[viz]",  # codec.viz needs plotly; training.visualization needs pillow
+    "tqdm",
+    "wandb",
+    "lpips",
+    "rich",
+    "torchmetrics",
+    "termcolor",
+]
+# Offline world-model metrics: Frechet DINO/Inception (DINO loads via torch.hub). Heavy and
+# eval-only, deliberately kept out of `train`; the trainer's downstream-metrics eval logs and
+# skips when this isn't installed. Reads eval clips (decode) and builds the
+# model from its saved Hydra config.
+eval = ["mira[decode]", "mira[hydra]", "pytorch-fid", "scipy"]
+dev = ["pytest", "ruff", "pyright"]
+doom = [
+    "mira[train]",
+    "mira[eval]",
+    "mira[decode]",
+    "transformers>=4.44",
+    "safetensors>=0.4", 
+    "huggingface_hub[cli]>=0.24", 
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mira"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--import-mode=importlib"
+
+[tool.ruff]
+line-length = 110
+extend-exclude = ["examples"]  # marimo notebooks have their own (generated) style
+
+[tool.ruff.lint]
+extend-select = ["I"]  # import sorting
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.10"
+venvPath = ".pixi/envs"
+venv = "default"

@@ -1,0 +1,21 @@
+defaults:
+  - _self_
+
+world_model_metrics:
+  _target_: mira.training.metrics.world_model_metrics.WorldModelMetricsConfig
+  _convert_: all  # pass plain dicts to the Pydantic config, not OmegaConf nodes
+  checkpoint: null
+  output_dir: null
+  inference:
+    schedule_type: linear
+    noise_level: 0.0
+  num_samples: 2048
+  per_device_batch_size: 1
+  n_context_frames: 38
+  num_unrolled_frames: 20
+  drift_metric_frames: 20
+  fdd_slice_frames: 10  # per-slice Frechet width -> 20/10 = 2 slices (at 10, 20 latent frames)
+  eval_temporal_downsampling: null
+  compile: false
+  dino_max_chunk_size: 128  # max frames per DINO forward pass, reduces peak memory
+  num_viz_samples: 8  # how many eval samples to visualize (logged to W&B)
