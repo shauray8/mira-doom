@@ -45,6 +45,8 @@ that the inductor cache makes it ~20 seconds.
 | `MIRA_NOISE` | `0.0` | Context noise, the drift knob. Optimal is 0 at 6 steps (0.45 is the 2-step value — it does not transfer). |
 | `MIRA_WORLDKV` | `0` | Episodic memory (yaw-cued KV bank). Implemented and cheap, but measured **no better than off** |
 
+trained ckpts for this is uploaded here - https://huggingface.co/shauray/mira-doom
+
 ---
 
 ## Training
